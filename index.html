@@ -564,7 +564,7 @@
                 { name: "Apple", image: "https://static.vecteezy.com/system/resources/previews/010/964/156/original/apple-pixel-art-free-vector.jpg", price: 10 },
                 { name: "Banana", image: "https://static.vecteezy.com/system/resources/previews/028/044/469/original/banana-pixel-art-png.png", price: 15 },
                 { name: "Orange", image: "https://static.vecteezy.com/system/resources/previews/003/126/545/original/orange-pixel-8bit-illustration-vector.jpg", price: 12 },
-                { name: "Pear", image: "https://static.vecteezy.com/system/resources/previews/019/527/068/non_2x/an-8-bit-retro-styled-pixel-art-illustration-of-a-pear-free-png.png", price: 14 },
+                { name: "Pear", image: "https://static.vecteezy.com/system/resources/previews/017/527/726/original/ripe-pear-fruit-with-green-leaf-pixels-icons-vector.jpg", price: 14 },
                 { name: "Grapes", image: "https://th.bing.com/th/id/OIP.gkzs6vDD1Mletbej9Xr4_wHaHa?cb=iwc2&rs=1&pid=ImgDetMain", price: 18 }
             ],
             uncommon: [
@@ -643,224 +643,256 @@
         ];
 
         // Game State
-        let gameState = {
-            balance: 1000,
-            inventory: [],
-            selectedCase: cases[0],
-            lastOpenedFruit: null
-        };
+let gameState = {
+    balance: 1000,
+    inventory: [],
+    selectedCase: null,
+    lastOpenedFruit: null
+};
 
-        // DOM Elements
-        const balanceEl = document.getElementById('balance');
-        const openCaseBtn = document.getElementById('open-case-btn');
-        const caseOptions = document.querySelectorAll('.case-option');
-        const selectedCaseEl = document.getElementById('selected-case');
-        const resultSection = document.querySelector('.result-section');
-        const revealedFruitEl = document.getElementById('revealed-fruit');
-        const fruitNameEl = document.getElementById('fruit-name');
-        const fruitRarityEl = document.getElementById('fruit-rarity');
-        const fruitPriceEl = document.getElementById('fruit-price');
-        const openAgainBtn = document.getElementById('open-again-btn');
-        const addToInvBtn = document.getElementById('add-to-inv-btn');
-        const inventoryBtn = document.querySelector('.inventory-btn');
-        const inventoryModal = document.querySelector('.inventory-modal');
-        const inventoryGrid = document.querySelector('.inventory-grid');
-        const totalFruitsEl = document.getElementById('total-fruits');
-        const collectionValueEl = document.getElementById('collection-value');
-        const closeModalBtns = document.querySelectorAll('.close-modal');
-        const tradingModal = document.querySelector('.trading-modal');
-        const tradingBtn = document.querySelector('.trading-btn');
-        const createOfferBtn = document.getElementById('create-offer-btn');
+// DOM Elements
+const balanceEl = document.getElementById('balance');
+const openCaseBtn = document.getElementById('open-case-btn');
+const caseOptions = document.querySelectorAll('.case-option');
+const selectedCaseEl = document.getElementById('selected-case');
+const resultSection = document.querySelector('.result-section');
+const revealedFruitEl = document.getElementById('revealed-fruit');
+const fruitNameEl = document.getElementById('fruit-name');
+const fruitRarityEl = document.getElementById('fruit-rarity');
+const fruitPriceEl = document.getElementById('fruit-price');
+const openAgainBtn = document.getElementById('open-again-btn');
+const addToInvBtn = document.getElementById('add-to-inv-btn');
+const inventoryBtn = document.querySelector('.inventory-btn');
+const inventoryModal = document.querySelector('.inventory-modal');
+const inventoryGrid = document.querySelector('.inventory-grid');
+const totalFruitsEl = document.getElementById('total-fruits');
+const collectionValueEl = document.getElementById('collection-value');
+const closeModalBtns = document.querySelectorAll('.close-modal');
+const tradingModal = document.querySelector('.trading-modal');
+const tradingBtn = document.querySelector('.trading-btn');
+const createOfferBtn = document.getElementById('create-offer-btn');
 
-        // Initialize the game
-        function initGame() {
-            updateBalance();
-            setupEventListeners();
+// 🔄 Save game state to localStorage
+function saveGame() {
+    const saveData = {
+        balance: gameState.balance,
+        inventory: gameState.inventory,
+        selectedCaseName: gameState.selectedCase?.name || null
+    };
+    localStorage.setItem('fruitGameSave', JSON.stringify(saveData));
+}
+
+// 🔁 Load game state from localStorage
+function loadGame() {
+    const savedData = localStorage.getItem('fruitGameSave');
+    if (savedData) {
+        const data = JSON.parse(savedData);
+        gameState.balance = data.balance ?? 1000;
+        gameState.inventory = data.inventory ?? [];
+        gameState.selectedCase = cases.find(c => c.name === data.selectedCaseName) || cases[0];
+    } else {
+        gameState.selectedCase = cases[0];
+    }
+}
+
+// Initialize the game
+function initGame() {
+    loadGame(); // Auto-load
+    updateBalance();
+    setupEventListeners();
+    updateCaseDisplay();
+    updateInventoryDisplay();
+}
+
+// Set up event listeners
+function setupEventListeners() {
+    caseOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            const caseType = option.dataset.case;
+            gameState.selectedCase = cases.find(c => c.name.toLowerCase().includes(caseType));
             updateCaseDisplay();
-        }
+            saveGame(); // Save on case change
+        });
+    });
 
-        // Set up event listeners
-        function setupEventListeners() {
-            // Case selection
-            caseOptions.forEach(option => {
-                option.addEventListener('click', () => {
-                    const caseType = option.dataset.case;
-                    gameState.selectedCase = cases.find(c => c.name.toLowerCase().includes(caseType));
-                    updateCaseDisplay();
-                });
-            });
-            
-            // Open case button
-            openCaseBtn.addEventListener('click', openCase);
-            
-            // Open again button
-            openAgainBtn.addEventListener('click', () => {
-                resultSection.classList.add('hidden');
-                openCase();
-            });
-            
-            // Add to inventory button
-            addToInvBtn.addEventListener('click', addToInventory);
-            
-            // Inventory button
-            inventoryBtn.addEventListener('click', () => {
-                inventoryModal.classList.remove('hidden');
-                updateInventoryDisplay();
-            });
-            
-            // Close modals
-            closeModalBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    inventoryModal.classList.add('hidden');
-                    tradingModal.classList.add('hidden');
-                });
-            });
-            
-            // Trading button
-            tradingBtn.addEventListener('click', () => {
-                tradingModal.classList.remove('hidden');
-            });
-            
-            // Create offer button
-            createOfferBtn.addEventListener('click', createTradeOffer);
-        }
+    openCaseBtn.addEventListener('click', openCase);
+    openAgainBtn.addEventListener('click', () => {
+        resultSection.classList.add('hidden');
+        openCase();
+    });
 
-        // Update the displayed case
-        function updateCaseDisplay() {
-            const caseImg = selectedCaseEl.querySelector('img');
-            const caseName = selectedCaseEl.querySelector('.case-name');
-            const casePrice = selectedCaseEl.querySelector('.case-price');
-            
-            caseImg.src = gameState.selectedCase.image;
-            caseName.textContent = gameState.selectedCase.name;
-            casePrice.textContent = `$${gameState.selectedCase.price}`;
-            openCaseBtn.textContent = `OPEN CASE ($${gameState.selectedCase.price})`;
-        }
+    addToInvBtn.addEventListener('click', () => {
+        addToInventory();
+        saveGame(); // Save when item added to inventory
+    });
 
-        // Open a case
-        function openCase() {
-            if (gameState.balance < gameState.selectedCase.price) {
-                alert("Not enough money to open this case!");
-                return;
-            }
-            
-            // Deduct balance
-            gameState.balance -= gameState.selectedCase.price;
-            updateBalance();
-            
-            // Disable button during animation
-            openCaseBtn.disabled = true;
-            
-            // Shake case animation
-            selectedCaseEl.classList.add('case-shake');
-            
-            // After shake animation, reveal fruit
-            setTimeout(() => {
-                selectedCaseEl.classList.remove('case-shake');
-                revealFruit();
-            }, 500);
-        }
+    inventoryBtn.addEventListener('click', () => {
+        inventoryModal.classList.remove('hidden');
+        updateInventoryDisplay();
+    });
 
-        // Reveal the fruit from the case
-        function revealFruit() {
-            const rarity = getRandomRarity();
-            const fruitPool = fruits[rarity];
-            const randomFruit = fruitPool[Math.floor(Math.random() * fruitPool.length)];
-            
-            // Set last opened fruit
-            gameState.lastOpenedFruit = {
-                ...randomFruit,
-                rarity: rarity
-            };
-            
-            // Update UI
-            revealedFruitEl.src = randomFruit.image;
-            fruitNameEl.textContent = randomFruit.name;
-            fruitPriceEl.textContent = `Value: $${randomFruit.price}`;
-            
-            // Update rarity display
-            fruitRarityEl.textContent = rarity.charAt(0).toUpperCase() + rarity.slice(1);
-            fruitRarityEl.className = 'rarity ' + rarity;
-            
-            // Add animations
-            revealedFruitEl.classList.add('fruit-reveal-animation');
-            fruitRarityEl.classList.add('rarity-pulse');
-            
-            // Show result section
-            resultSection.classList.remove('hidden');
-            
-            // Re-enable button
-            openCaseBtn.disabled = false;
-            
-            // Remove animations after they complete
-            setTimeout(() => {
-                revealedFruitEl.classList.remove('fruit-reveal-animation');
-                fruitRarityEl.classList.remove('rarity-pulse');
-            }, 1500);
-        }
+    closeModalBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            inventoryModal.classList.add('hidden');
+            tradingModal.classList.add('hidden');
+        });
+    });
 
-        // Get random rarity based on case chances
-        function getRandomRarity() {
-            const chances = gameState.selectedCase.chances;
-            const random = Math.random() * 100;
-            
-            let cumulative = 0;
-            for (const [rarity, chance] of Object.entries(chances)) {
-                cumulative += chance;
-                if (random <= cumulative) {
-                    return rarity;
-                }
-            }
-            
-            return 'common'; // fallback
-        }
+    tradingBtn.addEventListener('click', () => {
+        tradingModal.classList.remove('hidden');
+    });
 
-        // Add to inventory
-        function addToInventory() {
-            if (!gameState.lastOpenedFruit) return;
-            
-            gameState.inventory.push(gameState.lastOpenedFruit);
-            updateInventoryDisplay();
-            resultSection.classList.add('hidden');
-            
-            // Show confirmation
-            alert(`${gameState.lastOpenedFruit.name} added to your inventory!`);
-        }
+    createOfferBtn.addEventListener('click', createTradeOffer);
+}
 
-        // Update inventory display
-        function updateInventoryDisplay() {
-            inventoryGrid.innerHTML = '';
-            
-            gameState.inventory.forEach((fruit, index) => {
-                const fruitEl = document.createElement('div');
-                fruitEl.className = 'inventory-item';
-                fruitEl.innerHTML = `
-                    <img src="${fruit.image}" alt="${fruit.name}">
-                    <div class="fruit-name">${fruit.name}</div>
-                    <div class="fruit-price">$${fruit.price}</div>
-                    <div class="rarity ${fruit.rarity}">${fruit.rarity.charAt(0).toUpperCase() + fruit.rarity.slice(1)}</div>
-                `;
-                inventoryGrid.appendChild(fruitEl);
-            });
-            
-            // Update stats
-            totalFruitsEl.textContent = gameState.inventory.length;
-            const totalValue = gameState.inventory.reduce((sum, fruit) => sum + fruit.price, 0);
-            collectionValueEl.textContent = `$${totalValue}`;
-        }
+// Update the displayed case
+function updateCaseDisplay() {
+    const caseImg = selectedCaseEl.querySelector('img');
+    const caseName = selectedCaseEl.querySelector('.case-name');
+    const casePrice = selectedCaseEl.querySelector('.case-price');
 
-        // Update balance display
-        function updateBalance() {
-            balanceEl.textContent = `$${gameState.balance}`;
-        }
+    caseImg.src = gameState.selectedCase.image;
+    caseName.textContent = gameState.selectedCase.name;
+    casePrice.textContent = `$${gameState.selectedCase.price}`;
+    openCaseBtn.textContent = `OPEN CASE ($${gameState.selectedCase.price})`;
+}
 
-        // Create trade offer (placeholder)
-        function createTradeOffer() {
-            alert("Trade system will be implemented in the full version!");
-        }
+// Open a case
+function openCase() {
+    if (gameState.balance < gameState.selectedCase.price) {
+        alert("Not enough money to open this case!");
+        return;
+    }
 
-        // Initialize the game when DOM is loaded
-        document.addEventListener('DOMContentLoaded', initGame);
+    gameState.balance -= gameState.selectedCase.price;
+    updateBalance();
+    saveGame(); // Save after spending money
+
+    openCaseBtn.disabled = true;
+    selectedCaseEl.classList.add('case-shake');
+
+    setTimeout(() => {
+        selectedCaseEl.classList.remove('case-shake');
+        revealFruit();
+    }, 500);
+}
+
+// Reveal the fruit from the case
+function revealFruit() {
+    const rarity = getRandomRarity();
+    const fruitPool = fruits[rarity];
+    const randomFruit = fruitPool[Math.floor(Math.random() * fruitPool.length)];
+
+    gameState.lastOpenedFruit = {
+        ...randomFruit,
+        rarity: rarity
+    };
+
+    revealedFruitEl.src = randomFruit.image;
+    fruitNameEl.textContent = randomFruit.name;
+    fruitPriceEl.textContent = `Value: $${randomFruit.price}`;
+
+    fruitRarityEl.textContent = rarity.charAt(0).toUpperCase() + rarity.slice(1);
+    fruitRarityEl.className = 'rarity ' + rarity;
+
+    revealedFruitEl.classList.add('fruit-reveal-animation');
+    fruitRarityEl.classList.add('rarity-pulse');
+    resultSection.classList.remove('hidden');
+
+    openCaseBtn.disabled = false;
+
+    setTimeout(() => {
+        revealedFruitEl.classList.remove('fruit-reveal-animation');
+        fruitRarityEl.classList.remove('rarity-pulse');
+    }, 1500);
+}
+
+// Get random rarity based on case chances
+function getRandomRarity() {
+    const chances = gameState.selectedCase.chances;
+    const random = Math.random() * 100;
+
+    let cumulative = 0;
+    for (const [rarity, chance] of Object.entries(chances)) {
+        cumulative += chance;
+        if (random <= cumulative) {
+            return rarity;
+        }
+    }
+
+    return 'common';
+}
+
+// Add to inventory
+function addToInventory() {
+    if (!gameState.lastOpenedFruit) return;
+
+    gameState.inventory.push(gameState.lastOpenedFruit);
+    updateInventoryDisplay();
+    resultSection.classList.add('hidden');
+
+    alert(`${gameState.lastOpenedFruit.name} added to your inventory!`);
+}
+
+// Update inventory display with sell buttons
+function updateInventoryDisplay() {
+    inventoryGrid.innerHTML = '';
+
+    gameState.inventory.forEach((fruit, index) => {
+        const fruitEl = document.createElement('div');
+        fruitEl.className = 'inventory-item';
+        fruitEl.innerHTML = `
+            <img src="${fruit.image}" alt="${fruit.name}">
+            <div class="fruit-name">${fruit.name}</div>
+            <div class="fruit-price">$${fruit.price}</div>
+            <div class="rarity ${fruit.rarity}">${fruit.rarity.charAt(0).toUpperCase() + fruit.rarity.slice(1)}</div>
+              <button class="sell-btn styled-sell" data-index="${index}" style="font-size: 16px; color: #333; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);">💰 Sell for $${fruit.price}</button>
+
+        `;
+        inventoryGrid.appendChild(fruitEl);
+    });
+
+    // Sell button listeners
+    const sellButtons = document.querySelectorAll('.sell-btn');
+    sellButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const index = parseInt(button.dataset.index);
+            sellFruit(index);
+        });
+    });
+
+    totalFruitsEl.textContent = gameState.inventory.length;
+    const totalValue = gameState.inventory.reduce((sum, fruit) => sum + fruit.price, 0);
+    collectionValueEl.textContent = `$${totalValue}`;
+}
+
+// Sell a fruit from inventory
+function sellFruit(index) {
+    const fruit = gameState.inventory[index];
+    if (!fruit) return;
+
+    gameState.balance += fruit.price;
+    gameState.inventory.splice(index, 1);
+
+    updateBalance();
+    updateInventoryDisplay();
+    saveGame();
+
+    alert(`${fruit.name} sold for $${fruit.price}!`);
+}
+
+// Update balance display
+function updateBalance() {
+    balanceEl.textContent = `$${gameState.balance}`;
+}
+
+// Create trade offer (placeholder)
+function createTradeOffer() {
+    alert("Trade system will be implemented in the full version!");
+}
+
+// Start game
+document.addEventListener('DOMContentLoaded', initGame);
     </script>
 </body>
 </html>
